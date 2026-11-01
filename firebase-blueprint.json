@@ -1,0 +1,189 @@
+{
+  "entities": {
+    "Reservation": {
+      "title": "Table Reservation",
+      "description": "Guest table reservation requests for Newform Restaurant",
+      "type": "object",
+      "properties": {
+        "guestName": {
+          "type": "string",
+          "description": "Full name of the guest reserving the table"
+        },
+        "guestPhone": {
+          "type": "string",
+          "description": "Contact phone number for reservation verification and SMS confirmation"
+        },
+        "guestEmail": {
+          "type": "string",
+          "description": "Optional email address for booking receipt and updates"
+        },
+        "date": {
+          "type": "string",
+          "description": "Selected reservation date (YYYY-MM-DD)"
+        },
+        "time": {
+          "type": "string",
+          "description": "Selected seating time (e.g., 19:30)"
+        },
+        "guests": {
+          "type": "integer",
+          "description": "Number of diners in the party (1 to 20)"
+        },
+        "seatingArea": {
+          "type": "string",
+          "enum": ["indoor-ac", "family-lounge", "open-terrace", "arabian-majlis", "no-preference"],
+          "description": "Preferred dining zone"
+        },
+        "specialRequests": {
+          "type": "string",
+          "description": "Dietary constraints, celebrations, or special seating requirements"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "confirmed", "cancelled", "completed"],
+          "description": "Current status of the reservation request"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the reservation request was created"
+        }
+      },
+      "required": ["guestName", "guestPhone", "date", "time", "guests", "status", "createdAt"]
+    },
+    "ContactInquiry": {
+      "title": "Contact Inquiry",
+      "description": "Customer feedback, catering inquiries, or general messages",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Sender name"
+        },
+        "phoneOrEmail": {
+          "type": "string",
+          "description": "Contact info"
+        },
+        "message": {
+          "type": "string",
+          "description": "Inquiry text"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["general", "catering", "event", "feedback"],
+          "description": "Category of inquiry"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Submission timestamp"
+        }
+      },
+      "required": ["name", "phoneOrEmail", "message", "createdAt"]
+    },
+    "Dish": {
+      "title": "Menu Dish Item",
+      "description": "Menu dish entry with live pricing, availability and culinary details",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Dish title in English"
+        },
+        "malayalamName": {
+          "type": "string",
+          "description": "Dish title in Malayalam script"
+        },
+        "category": {
+          "type": "string",
+          "enum": ["kerala", "arabian", "chinese", "dessert"],
+          "description": "Cuisine category"
+        },
+        "description": {
+          "type": "string",
+          "description": "Dish flavor notes and preparation details"
+        },
+        "price": {
+          "type": "string",
+          "description": "Display price (e.g. ₹280)"
+        },
+        "image": {
+          "type": "string",
+          "description": "Image URL or asset reference"
+        },
+        "dietaryTags": {
+          "type": "string",
+          "description": "Dietary attributes (Vegetarian, Vegan, Gluten-Free, Spicy)"
+        },
+        "isSignature": {
+          "type": "boolean",
+          "description": "Whether dish is highlighted in signature showcase"
+        },
+        "available": {
+          "type": "boolean",
+          "description": "Whether dish is currently available and visible on public menu"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        }
+      },
+      "required": ["name", "category", "description"]
+    },
+    "SiteSettings": {
+      "title": "Website Operational Settings",
+      "description": "Global live business configuration for Newform Restaurant",
+      "type": "object",
+      "properties": {
+        "openingHours": {
+          "type": "string",
+          "description": "Operating hours schedule text"
+        },
+        "phone": {
+          "type": "string",
+          "description": "Primary customer contact telephone"
+        },
+        "whatsappNumber": {
+          "type": "string",
+          "description": "WhatsApp Business phone number or link"
+        },
+        "email": {
+          "type": "string",
+          "description": "Primary restaurant email address"
+        },
+        "address": {
+          "type": "string",
+          "description": "Physical restaurant street address"
+        },
+        "noticeBanner": {
+          "type": "string",
+          "description": "Notice banner text displayed at top of public website"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp"
+        }
+      }
+    }
+  },
+  "firestore": {
+    "/reservations/{reservationId}": {
+      "schema": "Reservation",
+      "description": "Public guest reservation requests submitted through the digital dining portal"
+    },
+    "/inquiries/{inquiryId}": {
+      "schema": "ContactInquiry",
+      "description": "Guest catering inquiries and messages"
+    },
+    "/dishes/{dishId}": {
+      "schema": "Dish",
+      "description": "Live restaurant dishes and pricing directory"
+    },
+    "/settings/{settingId}": {
+      "schema": "SiteSettings",
+      "description": "Global website settings document (settings/site)"
+    }
+  }
+}

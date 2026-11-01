@@ -1,0 +1,222 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-editorial: 'Playfair Display', Georgia, serif;
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: #14110F;
+    color: #F6EFE3;
+    overflow-x: hidden;
+    transition: background-color 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+                color 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  h1, h2, h3, .font-editorial {
+    font-family: var(--font-editorial);
+  }
+}
+
+/* Custom smooth scrollbar */
+::-webkit-scrollbar {
+  width: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: #14110F;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2a2420;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #D9A441;
+}
+
+/* Subtle editorial film grain texture */
+.film-grain {
+  background-image: radial-gradient(rgba(217, 164, 65, 0.05) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+/* Smooth glass effect */
+.glass-panel {
+  background: rgba(20, 17, 15, 0.78);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(217, 164, 65, 0.15);
+}
+
+.glass-panel-light {
+  background: rgba(246, 239, 227, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(20, 17, 15, 0.1);
+}
+
+/* ==========================================================
+   ALABASTER CLEAN WHITE MODE SPECIFICATION
+   Editorial, airy, crisp luxury gastronomy aesthetic
+   ========================================================== */
+
+body.light-mode {
+  background-color: #FAF8F5 !important;
+  color: #1C1917 !important;
+}
+
+body.light-mode ::-webkit-scrollbar-track {
+  background: #FAF8F5;
+}
+
+body.light-mode ::-webkit-scrollbar-thumb {
+  background: #d6cebe;
+}
+
+body.light-mode ::-webkit-scrollbar-thumb:hover {
+  background: #B87B1A;
+}
+
+/* Deep background overrides in Light Clean Mode */
+body.light-mode .bg-\[\#14110F\] {
+  background-color: #FAF8F5 !important;
+}
+
+body.light-mode .bg-\[\#0e0c0b\] {
+  background-color: #F4EFE6 !important;
+  border-top-color: rgba(184, 123, 26, 0.25) !important;
+}
+
+body.light-mode .bg-\[\#14110F\]\/90,
+body.light-mode .bg-\[\#14110F\]\/95,
+body.light-mode .bg-\[\#14110F\]\/98 {
+  background-color: rgba(250, 248, 245, 0.94) !important;
+  box-shadow: 0 4px 25px -4px rgba(28, 25, 23, 0.06);
+}
+
+body.light-mode .bg-\[\#1c1815\] {
+  background-color: #FFFFFF !important;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05);
+}
+
+body.light-mode .bg-\[\#241f1b\] {
+  background-color: #F3ECE1 !important;
+}
+
+body.light-mode .bg-\[\#181513\] {
+  background-color: #F8F4EC !important;
+}
+
+/* Text overrides in Light Clean Mode */
+body.light-mode .text-\[\#F6EFE3\] {
+  color: #1C1917 !important;
+}
+
+body.light-mode .text-\[\#F6EFE3\]\/90 {
+  color: rgba(28, 25, 23, 0.92) !important;
+}
+
+body.light-mode .text-\[\#F6EFE3\]\/80 {
+  color: rgba(28, 25, 23, 0.82) !important;
+}
+
+body.light-mode .text-\[\#F6EFE3\]\/70 {
+  color: rgba(28, 25, 23, 0.72) !important;
+}
+
+body.light-mode .text-\[\#F6EFE3\]\/60 {
+  color: rgba(28, 25, 23, 0.62) !important;
+}
+
+body.light-mode .text-\[\#F6EFE3\]\/50 {
+  color: rgba(28, 25, 23, 0.52) !important;
+}
+
+body.light-mode .text-\[\#F6EFE3\]\/40 {
+  color: rgba(28, 25, 23, 0.42) !important;
+}
+
+/* Warm accent tones refined for high readability on white */
+body.light-mode .text-\[\#D9A441\] {
+  color: #B87B1A !important;
+}
+
+body.light-mode .text-\[\#A63A2B\] {
+  color: #8F2A1D !important;
+}
+
+body.light-mode .text-\[\#2F5D46\] {
+  color: #224936 !important;
+}
+
+/* Border overrides */
+body.light-mode .border-white\/5,
+body.light-mode .border-white\/10,
+body.light-mode .border-white\/15,
+body.light-mode .border-white\/20 {
+  border-color: rgba(28, 25, 23, 0.12) !important;
+}
+
+body.light-mode .border-\[\#D9A441\]\/15,
+body.light-mode .border-\[\#D9A441\]\/20,
+body.light-mode .border-\[\#D9A441\]\/25,
+body.light-mode .border-\[\#D9A441\]\/30,
+body.light-mode .border-\[\#D9A441\]\/40 {
+  border-color: rgba(184, 123, 26, 0.32) !important;
+}
+
+/* Glass panel light mode */
+body.light-mode .glass-panel {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border: 1px solid rgba(184, 123, 26, 0.22) !important;
+  box-shadow: 0 20px 40px -15px rgba(28, 25, 23, 0.08) !important;
+}
+
+/* Film grain in light mode */
+body.light-mode .film-grain {
+  background-image: radial-gradient(rgba(184, 123, 26, 0.06) 1px, transparent 0) !important;
+}
+
+/* Inputs & Form Controls in Light Mode */
+body.light-mode input,
+body.light-mode select,
+body.light-mode textarea {
+  background-color: #FFFFFF !important;
+  color: #1C1917 !important;
+  border-color: rgba(28, 25, 23, 0.18) !important;
+}
+
+body.light-mode input::placeholder,
+body.light-mode textarea::placeholder {
+  color: rgba(28, 25, 23, 0.45) !important;
+}
+
+body.light-mode input:focus,
+body.light-mode select:focus,
+body.light-mode textarea:focus {
+  border-color: #B87B1A !important;
+}
+
+/* Cursor in light mode */
+body.light-mode .pointer-events-none .bg-\[\#F6EFE3\] {
+  background-color: #1C1917 !important;
+}
+
+/* Reservation Modal & Overlays */
+body.light-mode .bg-black\/80 {
+  background-color: rgba(28, 25, 23, 0.65) !important;
+}
+
+/* Button contrast adjustments in light mode */
+body.light-mode .bg-\[\#D9A441\] {
+  background-color: #D9A441 !important;
+  color: #14110F !important;
+}
+
+body.light-mode .bg-\[\#D9A441\]:hover {
+  background-color: #e6b14d !important;
+}

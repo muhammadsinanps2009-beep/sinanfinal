@@ -1,0 +1,61 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. GUEST RESERVATIONS
+    // Guests can submit reservation requests with validated structure
+    match /reservations/{reservationId} {
+      allow create: if request.resource.data.guestName is string
+                    && request.resource.data.guestName.size() > 0
+                    && request.resource.data.guestName.size() <= 100
+                    && request.resource.data.guestPhone is string
+                    && request.resource.data.guestPhone.size() >= 8
+                    && request.resource.data.date is string
+                    && request.resource.data.time is string
+                    && request.resource.data.guests is int
+                    && request.resource.data.guests >= 1
+                    && request.resource.data.guests <= 50;
+
+      // Staff authenticated access only for reading, status updates, and deletions
+      allow read, update, delete: if request.auth != null;
+    }
+
+    // 2. GUEST INQUIRIES & MESSAGES
+    // Guests can submit catering and general inquiries
+    match /inquiries/{inquiryId} {
+      allow create: if request.resource.data.name is string
+                    && request.resource.data.name.size() > 0
+                    && request.resource.data.phoneOrEmail is string
+                    && request.resource.data.phoneOrEmail.size() > 0
+                    && request.resource.data.message is string;
+
+      // Staff authenticated access only
+      allow read, update, delete: if request.auth != null;
+    }
+
+    // 3. MENU DISHES & PRICES
+    // Public read for live website visitors; admin/staff authenticated write
+    match /dishes/{dishId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // 4. SITE SETTINGS & OPERATIONAL DATA (settings/site)
+    // Public read for banner, hours, contact info; admin/staff authenticated write
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // 5. HEALTH PROBE
+    match /_connection_test_/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Deny all other access by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

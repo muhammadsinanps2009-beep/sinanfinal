@@ -1,0 +1,8 @@
+{
+  "name": "Remix website edit 3",
+  "description": "the website dising\n\n",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
