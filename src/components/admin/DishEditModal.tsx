@@ -54,7 +54,6 @@ export const DishEditModal: React.FC<DishEditModalProps> = ({
       setAvailable(dish.available !== false);
       setImage(dish.image || IMAGES.biryani);
     } else {
-      // New dish defaults
       setName('');
       setMalayalamName('');
       setCategory('kerala');
@@ -84,12 +83,16 @@ export const DishEditModal: React.FC<DishEditModalProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (!file.type.startsWith('image/')) {
+      setUploadError('Invalid file type: Please select an image file (JPG, PNG, or WebP).');
+      return;
+    }
+
     setUploadError('');
     setUploadSuccessInfo('');
     setIsUploading(true);
 
     try {
-      // File will be resized to < 1 MB before Firebase Storage upload
       const result = await uploadDishPhoto(file);
       if (result.success && result.url) {
         setImage(result.url);
@@ -107,27 +110,30 @@ export const DishEditModal: React.FC<DishEditModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving || isUploading) return;
     setFormError('');
 
-    if (!name.trim()) {
-      setFormError('Please enter a dish name.');
+    const cleanName = name.trim();
+    if (cleanName.length < 2) {
+      setFormError('Please enter a dish name with at least 2 characters.');
       return;
     }
 
-    if (!description.trim()) {
-      setFormError('Please enter a description for the dish.');
+    const cleanDesc = description.trim();
+    if (cleanDesc.length < 5) {
+      setFormError('Please enter a descriptive summary for the dish.');
       return;
     }
 
     setIsSaving(true);
     try {
       await onSave({
-        name: name.trim(),
-        malayalamName: malayalamName.trim(),
+        name: cleanName.slice(0, 120),
+        malayalamName: malayalamName.trim().slice(0, 120),
         category,
-        price: price.trim(),
-        description: description.trim(),
-        dietaryTags,
+        price: price.trim().slice(0, 60),
+        description: cleanDesc.slice(0, 2000),
+        dietaryTags: dietaryTags.slice(0, 10),
         isSignature,
         available,
         image,
@@ -186,6 +192,7 @@ export const DishEditModal: React.FC<DishEditModalProps> = ({
               <input
                 type="text"
                 required
+                maxLength={120}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Beef Fry with Flaky Parotta"
@@ -199,6 +206,7 @@ export const DishEditModal: React.FC<DishEditModalProps> = ({
               </label>
               <input
                 type="text"
+                maxLength={120}
                 value={malayalamName}
                 onChange={(e) => setMalayalamName(e.target.value)}
                 placeholder="e.g. ബീഫ് ഫ്രൈ പൊറോട്ട"
@@ -231,6 +239,7 @@ export const DishEditModal: React.FC<DishEditModalProps> = ({
               </label>
               <input
                 type="text"
+                maxLength={60}
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
                 placeholder="e.g. ₹280 or Affordable daily"
@@ -246,6 +255,7 @@ export const DishEditModal: React.FC<DishEditModalProps> = ({
             </label>
             <textarea
               required
+              maxLength={2000}
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}

@@ -17,13 +17,13 @@ import {
   Filter,
   AlertCircle,
   Loader2,
-  UtensilsCrossed,
 } from 'lucide-react';
 import {
   ReservationData,
   subscribeReservations,
   updateReservationStatus,
   deleteReservation,
+  extractErrorMessage,
 } from '../../firebase.ts';
 
 export const AdminBookingsSection: React.FC = () => {
@@ -45,7 +45,7 @@ export const AdminBookingsSection: React.FC = () => {
         setIsLoading(false);
       },
       (err) => {
-        console.warn('Reservations subscribe error:', err);
+        setActionError(extractErrorMessage(err, 'Permission Denied: Unable to access reservations.'));
         setIsLoading(false);
       }
     );
@@ -56,10 +56,10 @@ export const AdminBookingsSection: React.FC = () => {
   const showNotification = (msg: string, isErr = false) => {
     if (isErr) {
       setActionError(msg);
-      setTimeout(() => setActionError(null), 4000);
+      setTimeout(() => setActionError(null), 5000);
     } else {
       setActionSuccess(msg);
-      setTimeout(() => setActionSuccess(null), 4000);
+      setTimeout(() => setActionSuccess(null), 5000);
     }
   };
 
@@ -76,7 +76,7 @@ export const AdminBookingsSection: React.FC = () => {
   const confirmedCount = reservations.filter((r) => r.status === 'confirmed').length;
 
   const handleStatusChange = async (res: ReservationData, newStatus: 'pending' | 'confirmed' | 'cancelled') => {
-    if (!res.id) return;
+    if (!res.id || updatingId) return;
     setUpdatingId(res.id);
     try {
       const result = await updateReservationStatus(res.id, newStatus);
@@ -91,7 +91,7 @@ export const AdminBookingsSection: React.FC = () => {
   };
 
   const handleDelete = async (res: ReservationData) => {
-    if (!res.id) return;
+    if (!res.id || deletingId) return;
 
     if (!window.confirm(`Permanently delete table reservation for "${res.guestName}" on ${res.date}?`)) {
       return;
@@ -276,12 +276,11 @@ export const AdminBookingsSection: React.FC = () => {
                     {/* Quick Actions */}
                     <td className="py-3.5 px-4 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-2">
-                        {/* One-click Confirm Booking button */}
                         {isPending && (
                           <button
                             onClick={() => handleStatusChange(res, 'confirmed')}
                             disabled={updatingId === res.id}
-                            className="px-3 py-1.5 bg-[#2F5D46] hover:bg-[#397255] text-white rounded-lg transition-colors cursor-pointer text-xs font-semibold flex items-center gap-1.5 shadow-sm active:scale-95"
+                            className="px-3 py-1.5 bg-[#2F5D46] hover:bg-[#397255] text-white rounded-lg transition-colors cursor-pointer text-xs font-semibold flex items-center gap-1.5 shadow-sm active:scale-95 disabled:opacity-50"
                             title="Confirm Booking"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />
@@ -289,7 +288,6 @@ export const AdminBookingsSection: React.FC = () => {
                           </button>
                         )}
 
-                        {/* Call Guest */}
                         <a
                           href={`tel:${cleanPhone}`}
                           className="p-1.5 bg-white/5 hover:bg-[#D9A441] hover:text-[#14110F] text-[#D9A441] rounded-lg transition-colors cursor-pointer"
@@ -298,7 +296,6 @@ export const AdminBookingsSection: React.FC = () => {
                           <Phone className="w-3.5 h-3.5" />
                         </a>
 
-                        {/* WhatsApp Guest */}
                         <a
                           href={`https://wa.me/${cleanPhone.replace('+', '')}?text=${encodeURIComponent(
                             `Hello ${res.guestName}, your table reservation for ${res.guests} diners at Newform Restaurant on ${res.date} at ${res.time} is ${res.status.toUpperCase()}. We look forward to hosting you in Kalpetta!`
@@ -311,18 +308,16 @@ export const AdminBookingsSection: React.FC = () => {
                           <MessageCircle className="w-3.5 h-3.5" />
                         </a>
 
-                        {/* Toggle Cancelled / Pending */}
                         {isConfirmed && (
                           <button
                             onClick={() => handleStatusChange(res, 'cancelled')}
                             disabled={updatingId === res.id}
-                            className="px-2 py-1 text-[11px] text-rose-300 hover:bg-rose-950/40 rounded transition-colors"
+                            className="px-2 py-1 text-[11px] text-rose-300 hover:bg-rose-950/40 rounded transition-colors disabled:opacity-50"
                           >
                             Cancel
                           </button>
                         )}
 
-                        {/* Delete Record */}
                         <button
                           onClick={() => handleDelete(res)}
                           disabled={deletingId === res.id}

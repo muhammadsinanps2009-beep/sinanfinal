@@ -13,11 +13,10 @@ import {
   LogOut,
   ExternalLink,
   ShieldCheck,
-  Sparkles,
+  ShieldAlert,
   ArrowLeft,
   Loader2,
   AlertCircle,
-  KeyRound,
 } from 'lucide-react';
 import {
   signInWithPopup,
@@ -25,9 +24,8 @@ import {
   signOut,
   onAuthStateChanged,
   User,
-  signInAnonymously,
 } from 'firebase/auth';
-import { auth } from '../../firebase.ts';
+import { auth, isAuthorizedAdmin, AUTHORIZED_ADMIN_EMAILS } from '../../firebase.ts';
 import { useData } from '../../context/DataContext.tsx';
 import { AdminMenuSection } from './AdminMenuSection.tsx';
 import { AdminSettingsSection } from './AdminSettingsSection.tsx';
@@ -45,12 +43,27 @@ export const AdminPortal: React.FC = () => {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // Monitor auth state changes
+  // Monitor auth state changes with authorization enforcement
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setCurrentUser(user);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        if (isAuthorizedAdmin(user)) {
+          setCurrentUser(user);
+          setLoginError(null);
+        } else {
+          // Reject unauthorized accounts, sign out immediately to prevent token exposure
+          await signOut(auth);
+          setCurrentUser(null);
+          setLoginError(
+            `Access Denied: Account "${user.email}" is not authorized for staff administration. Please sign in with an authorized restaurant manager account.`
+          );
+        }
+      } else {
+        setCurrentUser(null);
+      }
       setAuthLoading(false);
     });
+
     return () => unsubscribe();
   }, []);
 
@@ -61,31 +74,27 @@ export const AdminPortal: React.FC = () => {
     provider.setCustomParameters({ prompt: 'select_account' });
 
     try {
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+
+      if (!isAuthorizedAdmin(user)) {
+        await signOut(auth);
+        setCurrentUser(null);
+        setLoginError(
+          `Access Denied: Account "${user.email}" does not have staff privileges. Authorized administrator account required.`
+        );
+      } else {
+        setCurrentUser(user);
+      }
     } catch (err: unknown) {
-      console.warn('Google Popup Login Notice:', err);
       const error = err as { code?: string; message?: string };
       if (error?.code === 'auth/popup-blocked') {
-        setLoginError('Sign-in popup was blocked by your browser. Please allow popups or use Staff Direct Access below.');
+        setLoginError('Sign-in popup was blocked by your browser. Please allow popups for this domain.');
       } else if (error?.code === 'auth/popup-closed-by-user') {
-        setLoginError('Sign-in was cancelled.');
+        setLoginError('Sign-in was cancelled by the user.');
       } else {
-        setLoginError(error?.message || 'Authentication encountered an issue. You can also use Staff Direct Access below.');
+        setLoginError('Authentication encountered an unexpected issue. Please verify your internet connection.');
       }
-    } finally {
-      setIsLoggingIn(false);
-    }
-  };
-
-  const handleStaffDirectLogin = async () => {
-    setLoginError(null);
-    setIsLoggingIn(true);
-    try {
-      // Allows staff access in restrictive iframe environments
-      await signInAnonymously(auth);
-    } catch (err: unknown) {
-      const error = err as { message?: string };
-      setLoginError(error?.message || 'Staff direct access failed.');
     } finally {
       setIsLoggingIn(false);
     }
@@ -94,6 +103,7 @@ export const AdminPortal: React.FC = () => {
   const handleSignOut = async () => {
     try {
       await signOut(auth);
+      setCurrentUser(null);
     } catch (err) {
       console.error('Sign-out error:', err);
     }
@@ -104,13 +114,13 @@ export const AdminPortal: React.FC = () => {
     return (
       <div className="min-h-screen bg-[#14110F] text-[#F6EFE3] flex flex-col items-center justify-center p-6">
         <Loader2 className="w-8 h-8 animate-spin text-[#D9A441] mb-3" />
-        <p className="font-editorial text-lg">Authenticating Staff Credentials...</p>
+        <p className="font-editorial text-lg tracking-wide">Verifying Staff Credentials & Session...</p>
       </div>
     );
   }
 
   // 2. Unauthenticated Login Gate
-  if (!currentUser) {
+  if (!currentUser || !isAuthorizedAdmin(currentUser)) {
     return (
       <div className="min-h-screen bg-[#14110F] text-[#F6EFE3] flex flex-col justify-between p-6 film-grain">
         {/* Back to Site Header */}
@@ -124,10 +134,10 @@ export const AdminPortal: React.FC = () => {
           </button>
         </div>
 
-        {/* Login Card */}
+        {/* Secure Login Card */}
         <div className="max-w-md mx-auto w-full bg-[#1c1815] rounded-2xl border border-[#D9A441]/30 p-8 shadow-2xl my-auto space-y-6">
           <div className="text-center space-y-2">
-            <div className="w-12 h-12 bg-[#D9A441]/15 text-[#D9A441] rounded-full flex items-center justify-center mx-auto mb-3">
+            <div className="w-12 h-12 bg-[#D9A441]/15 text-[#D9A441] rounded-full flex items-center justify-center mx-auto mb-3 border border-[#D9A441]/30">
               <Lock className="w-6 h-6" />
             </div>
             <span className="text-[10px] uppercase tracking-[0.25em] text-[#D9A441] font-bold block">
@@ -137,19 +147,19 @@ export const AdminPortal: React.FC = () => {
               NEWFORM PORTAL
             </h1>
             <p className="text-xs text-[#F6EFE3]/70 leading-relaxed font-light">
-              Sign in with your authorized Google staff account to manage live menu pricing, table bookings, customer inquiries, and operational site settings.
+              Sign in with your authorized Google staff email to manage live menu pricing, table bookings, customer inquiries, and operational site settings.
             </p>
           </div>
 
           {loginError && (
             <div className="p-3.5 bg-red-950/70 border border-red-500/40 rounded-lg text-xs text-red-200 flex items-start gap-2.5">
               <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-              <span>{loginError}</span>
+              <span className="leading-relaxed">{loginError}</span>
             </div>
           )}
 
           <div className="space-y-3 pt-2">
-            {/* Primary Google Login */}
+            {/* Primary Google Login with strict RBAC */}
             <button
               onClick={handleGoogleLogin}
               disabled={isLoggingIn}
@@ -177,23 +187,16 @@ export const AdminPortal: React.FC = () => {
                   />
                 </svg>
               )}
-              <span>Sign In with Google</span>
-            </button>
-
-            {/* Direct Staff Access fallback */}
-            <button
-              onClick={handleStaffDirectLogin}
-              disabled={isLoggingIn}
-              className="w-full py-2.5 px-4 bg-white/5 hover:bg-white/10 text-[#F6EFE3]/80 hover:text-white text-xs font-semibold uppercase tracking-wider rounded-xl transition-all duration-200 border border-white/10 flex items-center justify-center gap-2 cursor-pointer active:scale-98"
-            >
-              <KeyRound className="w-3.5 h-3.5 text-[#D9A441]" />
-              <span>Staff Direct Access (Sandbox Mode)</span>
+              <span>Sign In with Staff Account</span>
             </button>
           </div>
 
-          <div className="pt-4 border-t border-white/10 text-center">
+          <div className="pt-4 border-t border-white/10 text-center space-y-1">
             <p className="text-[11px] text-[#F6EFE3]/50">
-              Newform Restaurant Management · Mandayapuram, Kalpetta, Wayanad
+              Newform Restaurant Management · Mandayapuram, Kalpetta
+            </p>
+            <p className="text-[10px] text-[#D9A441]/80 font-mono">
+              Primary Administrator: {AUTHORIZED_ADMIN_EMAILS[0]}
             </p>
           </div>
         </div>
@@ -205,7 +208,7 @@ export const AdminPortal: React.FC = () => {
     );
   }
 
-  // 3. Authenticated Staff Portal
+  // 3. Authenticated & Verified Staff Portal
   return (
     <div className="min-h-screen bg-[#14110F] text-[#F6EFE3] flex flex-col film-grain">
       {/* Top Staff Navigation Header */}
@@ -221,12 +224,12 @@ export const AdminPortal: React.FC = () => {
             </span>
           </div>
 
-          {/* User status & External public view */}
+          {/* User status & Actions */}
           <div className="flex items-center gap-3">
             <div className="hidden md:flex items-center gap-2 text-xs text-[#F6EFE3]/70 bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="max-w-[180px] truncate">
-                {currentUser.email || 'Authorized Staff'}
+              <span className="max-w-[200px] truncate">
+                {currentUser.email}
               </span>
             </div>
 

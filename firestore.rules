@@ -2,60 +2,138 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // 1. GUEST RESERVATIONS
-    // Guests can submit reservation requests with validated structure
-    match /reservations/{reservationId} {
-      allow create: if request.resource.data.guestName is string
-                    && request.resource.data.guestName.size() > 0
-                    && request.resource.data.guestName.size() <= 100
-                    && request.resource.data.guestPhone is string
-                    && request.resource.data.guestPhone.size() >= 8
-                    && request.resource.data.date is string
-                    && request.resource.data.time is string
-                    && request.resource.data.guests is int
-                    && request.resource.data.guests >= 1
-                    && request.resource.data.guests <= 50;
-
-      // Staff authenticated access only for reading, status updates, and deletions
-      allow read, update, delete: if request.auth != null;
+    // -------------------------------------------------------------------------
+    // 0. GLOBAL SECURITY HELPERS & RBAC DEFINITIONS
+    // -------------------------------------------------------------------------
+    function incoming() {
+      return request.resource.data;
     }
 
-    // 2. GUEST INQUIRIES & MESSAGES
-    // Guests can submit catering and general inquiries
-    match /inquiries/{inquiryId} {
-      allow create: if request.resource.data.name is string
-                    && request.resource.data.name.size() > 0
-                    && request.resource.data.phoneOrEmail is string
-                    && request.resource.data.phoneOrEmail.size() > 0
-                    && request.resource.data.message is string;
+    function existing() {
+      return resource.data;
+    }
 
-      // Staff authenticated access only
-      allow read, update, delete: if request.auth != null;
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Principal Staff / Admin RBAC Check
+    // Authorizes verified primary administrator email or explicit documents in /admins collection
+    function isAdmin() {
+      return isEmailVerified() && (
+        request.auth.token.email == 'muhammadsinanps2009@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // -------------------------------------------------------------------------
+    // 1. DATA VALIDATION HELPERS
+    // -------------------------------------------------------------------------
+    function isValidReservation(data) {
+      return data.guestName is string
+        && data.guestName.size() >= 2
+        && data.guestName.size() <= 100
+        && data.guestPhone is string
+        && data.guestPhone.size() >= 8
+        && data.guestPhone.size() <= 20
+        && data.date is string
+        && data.date.size() >= 8
+        && data.date.size() <= 15
+        && data.time is string
+        && data.time.size() >= 3
+        && data.time.size() <= 10
+        && data.guests is int
+        && data.guests >= 1
+        && data.guests <= 50
+        && data.status in ['pending', 'confirmed', 'cancelled', 'completed'];
+    }
+
+    function isValidInquiry(data) {
+      return data.name is string
+        && data.name.size() >= 2
+        && data.name.size() <= 100
+        && data.phoneOrEmail is string
+        && data.phoneOrEmail.size() >= 5
+        && data.phoneOrEmail.size() <= 120
+        && data.message is string
+        && data.message.size() >= 2
+        && data.message.size() <= 2000
+        && (data.type == null || data.type in ['general', 'catering', 'event', 'feedback']);
+    }
+
+    function isValidDish(data) {
+      return data.name is string
+        && data.name.size() >= 2
+        && data.name.size() <= 120
+        && data.category in ['kerala', 'arabian', 'chinese', 'dessert']
+        && data.description is string
+        && data.description.size() <= 2000
+        && (data.price == null || (data.price is string && data.price.size() <= 60))
+        && (data.image == null || (data.image is string && data.image.size() <= 2048000))
+        && (data.available == null || data.available is bool);
+    }
+
+    function isValidSiteSettings(data) {
+      return (data.phone == null || (data.phone is string && data.phone.size() <= 50))
+        && (data.whatsappNumber == null || (data.whatsappNumber is string && data.whatsappNumber.size() <= 50))
+        && (data.email == null || (data.email is string && data.email.size() <= 100))
+        && (data.address == null || (data.address is string && data.address.size() <= 300))
+        && (data.noticeBanner == null || (data.noticeBanner is string && data.noticeBanner.size() <= 500));
+    }
+
+    // -------------------------------------------------------------------------
+    // 2. RESOURCE ACCESS RULES
+    // -------------------------------------------------------------------------
+
+    // Global Safety Net (Catch-all Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 1. GUEST RESERVATIONS
+    // Guests can submit initial reservation requests with strict validation
+    // ONLY verified staff/admins can read diner PII, change statuses, or delete bookings
+    match /reservations/{reservationId} {
+      allow create: if isValidReservation(incoming())
+                    && incoming().status == 'pending';
+      allow read, update, delete: if isAdmin();
+    }
+
+    // 2. GUEST INQUIRIES & CATERING MESSAGES
+    // Guests can submit inquiries; ONLY verified staff/admins can access customer contact info
+    match /inquiries/{inquiryId} {
+      allow create: if isValidInquiry(incoming());
+      allow read, update, delete: if isAdmin();
     }
 
     // 3. MENU DISHES & PRICES
-    // Public read for live website visitors; admin/staff authenticated write
+    // Public read for diner menu; strictly admin-only for price/content mutations
     match /dishes/{dishId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow create, update: if isAdmin() && isValidDish(incoming());
+      allow delete: if isAdmin();
     }
 
     // 4. SITE SETTINGS & OPERATIONAL DATA (settings/site)
-    // Public read for banner, hours, contact info; admin/staff authenticated write
+    // Public read for banner, hours, contact details; admin-only writes
     match /settings/{settingId} {
       allow read: if true;
-      allow write: if request.auth != null;
+      allow create, update: if isAdmin() && isValidSiteSettings(incoming());
+      allow delete: if isAdmin();
     }
 
-    // 5. HEALTH PROBE
+    // 5. HEALTH PROBE & CONNECTION TEST
     match /_connection_test_/{docId} {
       allow read: if true;
       allow write: if false;
-    }
-
-    // Deny all other access by default
-    match /{document=**} {
-      allow read, write: if false;
     }
   }
 }

@@ -3,15 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Save,
   RotateCcw,
   Megaphone,
   Phone,
-  MessageCircle,
-  Mail,
-  MapPin,
   Clock,
   Instagram,
   Facebook,
@@ -19,7 +16,6 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
-  Sparkles,
 } from 'lucide-react';
 import {
   SiteSettingsData,
@@ -47,13 +43,18 @@ export const AdminSettingsSection: React.FC = () => {
   const [swiggy, setSwiggy] = useState('');
   const [zomato, setZomato] = useState('');
 
+  // Tracking user edit status to prevent background snapshot state clobbering
+  const [isDirty, setIsDirty] = useState(false);
+  const initialHydrationDone = useRef(false);
+
   // Status
   const [isSaving, setIsSaving] = useState(false);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  // Sync state from Firestore only on initial load or if the user hasn't made unsaved modifications
   useEffect(() => {
-    if (siteSettings) {
+    if (siteSettings && (!initialHydrationDone.current || !isDirty)) {
       setOpeningHours(siteSettings.openingHours || '');
       setOpeningHoursNote(siteSettings.openingHoursNote || '');
       setPhone(siteSettings.phone || '');
@@ -67,21 +68,29 @@ export const AdminSettingsSection: React.FC = () => {
       setFacebook(siteSettings.socialLinks?.facebook || '');
       setSwiggy(siteSettings.socialLinks?.swiggy || '');
       setZomato(siteSettings.socialLinks?.zomato || '');
+
+      initialHydrationDone.current = true;
     }
-  }, [siteSettings]);
+  }, [siteSettings, isDirty]);
+
+  const markDirty = () => {
+    if (!isDirty) setIsDirty(true);
+  };
 
   const showNotification = (msg: string, isErr = false) => {
     if (isErr) {
       setActionError(msg);
-      setTimeout(() => setActionError(null), 4000);
+      setTimeout(() => setActionError(null), 5000);
     } else {
       setActionSuccess(msg);
-      setTimeout(() => setActionSuccess(null), 4000);
+      setTimeout(() => setActionSuccess(null), 5000);
     }
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return;
+
     setIsSaving(true);
     setActionError(null);
     setActionSuccess(null);
@@ -106,6 +115,7 @@ export const AdminSettingsSection: React.FC = () => {
     try {
       const res = await saveSiteSettings(payload);
       if (res.success) {
+        setIsDirty(false); // Clean state on verified persistent write
         showNotification('Site settings updated live in Firestore! All public pages reflect changes instantly.');
       } else {
         showNotification(res.error || 'Failed to save site settings', true);
@@ -134,6 +144,7 @@ export const AdminSettingsSection: React.FC = () => {
     setFacebook(DEFAULT_SITE_SETTINGS.socialLinks.facebook);
     setSwiggy(DEFAULT_SITE_SETTINGS.socialLinks.swiggy);
     setZomato(DEFAULT_SITE_SETTINGS.socialLinks.zomato);
+    setIsDirty(true);
     showNotification('Fields reset to defaults. Click "Save Settings" to persist to Firestore.');
   };
 
@@ -157,9 +168,16 @@ export const AdminSettingsSection: React.FC = () => {
       {/* Header bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 bg-[#1c1815] rounded-xl border border-[#D9A441]/20 shadow-xl">
         <div>
-          <h2 className="font-editorial text-2xl font-bold text-[#F6EFE3]">
-            Global Site Settings & Operational Details
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2 className="font-editorial text-2xl font-bold text-[#F6EFE3]">
+              Global Site Settings & Operational Details
+            </h2>
+            {isDirty && (
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase tracking-wider">
+                Unsaved Changes
+              </span>
+            )}
+          </div>
           <p className="text-xs text-[#F6EFE3]/70">
             Stored in Firestore document <code className="text-[#D9A441]">settings/site</code>. Updates header, footer, mobile bar, and map section in real time.
           </p>
@@ -220,12 +238,16 @@ export const AdminSettingsSection: React.FC = () => {
 
         <div>
           <label className="block text-xs uppercase tracking-wider text-[#D9A441] font-semibold mb-1">
-            Banner Announcement Text
+            Banner Announcement Text (Max 500 characters)
           </label>
           <input
             type="text"
+            maxLength={500}
             value={noticeBanner}
-            onChange={(e) => setNoticeBanner(e.target.value)}
+            onChange={(e) => {
+              setNoticeBanner(e.target.value);
+              markDirty();
+            }}
             placeholder="e.g. Special Ramadan Mandi Feast Available Every Evening · Call for Group Reservations"
             className="w-full px-3.5 py-2.5 bg-[#14110F] border border-white/10 rounded-lg text-sm text-[#F6EFE3] placeholder:text-[#F6EFE3]/30 focus:border-[#D9A441] focus:outline-none"
           />
@@ -262,8 +284,12 @@ export const AdminSettingsSection: React.FC = () => {
             </label>
             <input
               type="text"
+              maxLength={50}
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => {
+                setPhone(e.target.value);
+                markDirty();
+              }}
               placeholder="+91 4936 204 848"
               className="w-full px-3.5 py-2.5 bg-[#14110F] border border-white/10 rounded-lg text-sm text-[#F6EFE3] font-mono focus:border-[#D9A441] focus:outline-none"
             />
@@ -275,8 +301,12 @@ export const AdminSettingsSection: React.FC = () => {
             </label>
             <input
               type="text"
+              maxLength={50}
               value={whatsappNumber}
-              onChange={(e) => setWhatsappNumber(e.target.value)}
+              onChange={(e) => {
+                setWhatsappNumber(e.target.value);
+                markDirty();
+              }}
               placeholder="+91 4936 204 848 or 91XXXXXXXXXX"
               className="w-full px-3.5 py-2.5 bg-[#14110F] border border-white/10 rounded-lg text-sm text-[#F6EFE3] font-mono focus:border-[#D9A441] focus:outline-none"
             />
@@ -291,8 +321,12 @@ export const AdminSettingsSection: React.FC = () => {
             </label>
             <input
               type="email"
+              maxLength={100}
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                markDirty();
+              }}
               placeholder="info@newformrestaurant.com"
               className="w-full px-3.5 py-2.5 bg-[#14110F] border border-white/10 rounded-lg text-sm text-[#F6EFE3] focus:border-[#D9A441] focus:outline-none"
             />
@@ -314,8 +348,12 @@ export const AdminSettingsSection: React.FC = () => {
             </label>
             <input
               type="text"
+              maxLength={100}
               value={openingHours}
-              onChange={(e) => setOpeningHours(e.target.value)}
+              onChange={(e) => {
+                setOpeningHours(e.target.value);
+                markDirty();
+              }}
               placeholder="Daily 11:00 AM – 11:00 PM"
               className="w-full px-3.5 py-2.5 bg-[#14110F] border border-white/10 rounded-lg text-sm text-[#F6EFE3] focus:border-[#D9A441] focus:outline-none"
             />
@@ -327,8 +365,12 @@ export const AdminSettingsSection: React.FC = () => {
             </label>
             <input
               type="text"
+              maxLength={200}
               value={openingHoursNote}
-              onChange={(e) => setOpeningHoursNote(e.target.value)}
+              onChange={(e) => {
+                setOpeningHoursNote(e.target.value);
+                markDirty();
+              }}
               placeholder="e.g. Verified by management / Subject to holiday change"
               className="w-full px-3.5 py-2.5 bg-[#14110F] border border-white/10 rounded-lg text-sm text-[#F6EFE3] focus:border-[#D9A441] focus:outline-none"
             />
@@ -340,8 +382,12 @@ export const AdminSettingsSection: React.FC = () => {
             </label>
             <input
               type="text"
+              maxLength={300}
               value={address}
-              onChange={(e) => setAddress(e.target.value)}
+              onChange={(e) => {
+                setAddress(e.target.value);
+                markDirty();
+              }}
               placeholder="Main Rd, Mandayapuram, Kalpetta, Kerala 673121, India"
               className="w-full px-3.5 py-2.5 bg-[#14110F] border border-white/10 rounded-lg text-sm text-[#F6EFE3] focus:border-[#D9A441] focus:outline-none"
             />
@@ -353,8 +399,12 @@ export const AdminSettingsSection: React.FC = () => {
             </label>
             <input
               type="text"
+              maxLength={150}
               value={landmark}
-              onChange={(e) => setLandmark(e.target.value)}
+              onChange={(e) => {
+                setLandmark(e.target.value);
+                markDirty();
+              }}
               placeholder="Near the old bus stand"
               className="w-full px-3.5 py-2.5 bg-[#14110F] border border-white/10 rounded-lg text-sm text-[#F6EFE3] focus:border-[#D9A441] focus:outline-none"
             />
@@ -379,8 +429,12 @@ export const AdminSettingsSection: React.FC = () => {
             </label>
             <input
               type="url"
+              maxLength={300}
               value={instagram}
-              onChange={(e) => setInstagram(e.target.value)}
+              onChange={(e) => {
+                setInstagram(e.target.value);
+                markDirty();
+              }}
               placeholder="https://instagram.com/newform_kalpetta"
               className="w-full px-3.5 py-2.5 bg-[#14110F] border border-white/10 rounded-lg text-sm text-[#F6EFE3] focus:border-[#D9A441] focus:outline-none"
             />
@@ -393,8 +447,12 @@ export const AdminSettingsSection: React.FC = () => {
             </label>
             <input
               type="url"
+              maxLength={300}
               value={facebook}
-              onChange={(e) => setFacebook(e.target.value)}
+              onChange={(e) => {
+                setFacebook(e.target.value);
+                markDirty();
+              }}
               placeholder="https://facebook.com/newformrestaurantkalpetta"
               className="w-full px-3.5 py-2.5 bg-[#14110F] border border-white/10 rounded-lg text-sm text-[#F6EFE3] focus:border-[#D9A441] focus:outline-none"
             />
@@ -406,8 +464,12 @@ export const AdminSettingsSection: React.FC = () => {
             </label>
             <input
               type="url"
+              maxLength={300}
               value={swiggy}
-              onChange={(e) => setSwiggy(e.target.value)}
+              onChange={(e) => {
+                setSwiggy(e.target.value);
+                markDirty();
+              }}
               placeholder="https://www.swiggy.com/restaurants/newform-restaurant..."
               className="w-full px-3.5 py-2.5 bg-[#14110F] border border-white/10 rounded-lg text-sm text-[#F6EFE3] focus:border-[#D9A441] focus:outline-none"
             />
@@ -419,8 +481,12 @@ export const AdminSettingsSection: React.FC = () => {
             </label>
             <input
               type="url"
+              maxLength={300}
               value={zomato}
-              onChange={(e) => setZomato(e.target.value)}
+              onChange={(e) => {
+                setZomato(e.target.value);
+                markDirty();
+              }}
               placeholder="https://www.zomato.com/kalpetta/newform-restaurant..."
               className="w-full px-3.5 py-2.5 bg-[#14110F] border border-white/10 rounded-lg text-sm text-[#F6EFE3] focus:border-[#D9A441] focus:outline-none"
             />

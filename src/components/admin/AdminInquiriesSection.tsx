@@ -16,13 +16,13 @@ import {
   AlertCircle,
   Loader2,
   Send,
-  User,
 } from 'lucide-react';
 import {
   InquiryData,
   subscribeInquiries,
   deleteInquiry,
   submitInquiry,
+  extractErrorMessage,
 } from '../../firebase.ts';
 
 export const AdminInquiriesSection: React.FC = () => {
@@ -51,7 +51,7 @@ export const AdminInquiriesSection: React.FC = () => {
         setIsLoading(false);
       },
       (err) => {
-        console.warn('Inquiries subscribe error:', err);
+        setActionError(extractErrorMessage(err, 'Permission Denied: Unable to access guest inquiries.'));
         setIsLoading(false);
       }
     );
@@ -62,10 +62,10 @@ export const AdminInquiriesSection: React.FC = () => {
   const showNotification = (msg: string, isErr = false) => {
     if (isErr) {
       setActionError(msg);
-      setTimeout(() => setActionError(null), 4000);
+      setTimeout(() => setActionError(null), 5000);
     } else {
       setActionSuccess(msg);
-      setTimeout(() => setActionSuccess(null), 4000);
+      setTimeout(() => setActionSuccess(null), 5000);
     }
   };
 
@@ -79,7 +79,7 @@ export const AdminInquiriesSection: React.FC = () => {
   });
 
   const handleDelete = async (inq: InquiryData) => {
-    if (!inq.id) return;
+    if (!inq.id || deletingId) return;
 
     if (!window.confirm(`Delete inquiry message from "${inq.name}"? This action cannot be undone.`)) {
       return;
@@ -104,6 +104,7 @@ export const AdminInquiriesSection: React.FC = () => {
 
   const handleCreateTestInquiry = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingTest) return;
     if (!testName.trim() || !testContact.trim() || !testMessage.trim()) return;
 
     setIsSubmittingTest(true);
@@ -349,6 +350,7 @@ export const AdminInquiriesSection: React.FC = () => {
                 <input
                   type="text"
                   required
+                  maxLength={100}
                   value={testName}
                   onChange={(e) => setTestName(e.target.value)}
                   placeholder="e.g. Rahul Nambiar"
@@ -363,6 +365,7 @@ export const AdminInquiriesSection: React.FC = () => {
                 <input
                   type="text"
                   required
+                  maxLength={120}
                   value={testContact}
                   onChange={(e) => setTestContact(e.target.value)}
                   placeholder="+91 98470 12345"
@@ -392,6 +395,7 @@ export const AdminInquiriesSection: React.FC = () => {
                 </label>
                 <textarea
                   required
+                  maxLength={2000}
                   rows={3}
                   value={testMessage}
                   onChange={(e) => setTestMessage(e.target.value)}
@@ -404,6 +408,7 @@ export const AdminInquiriesSection: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsTestModalOpen(false)}
+                  disabled={isSubmittingTest}
                   className="px-4 py-2 text-xs text-[#F6EFE3]/70 hover:text-white"
                 >
                   Cancel
@@ -411,7 +416,7 @@ export const AdminInquiriesSection: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmittingTest}
-                  className="px-5 py-2 bg-[#D9A441] text-[#14110F] font-bold text-xs uppercase tracking-wider rounded-lg"
+                  className="px-5 py-2 bg-[#D9A441] text-[#14110F] font-bold text-xs uppercase tracking-wider rounded-lg disabled:opacity-50"
                 >
                   {isSubmittingTest ? 'Submitting...' : 'Save Inquiry'}
                 </button>
