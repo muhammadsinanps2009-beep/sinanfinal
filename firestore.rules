@@ -26,12 +26,9 @@ service cloud.firestore {
     }
 
     // Principal Staff / Admin RBAC Check
-    // Authorizes verified primary administrator email or explicit documents in /admins collection
+    // Authorizes verified primary administrator email only
     function isAdmin() {
-      return isEmailVerified() && (
-        request.auth.token.email == 'muhammadsinanps2009@gmail.com' ||
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
-      );
+      return isEmailVerified() && request.auth.token.email == 'muhammadsinanps2009@gmail.com';
     }
 
     // -------------------------------------------------------------------------

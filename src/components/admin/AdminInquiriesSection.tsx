@@ -23,6 +23,8 @@ import {
   deleteInquiry,
   submitInquiry,
   extractErrorMessage,
+  isAuthorizedAdmin,
+  auth,
 } from '../../firebase.ts';
 
 export const AdminInquiriesSection: React.FC = () => {
@@ -45,6 +47,11 @@ export const AdminInquiriesSection: React.FC = () => {
   const [isSubmittingTest, setIsSubmittingTest] = useState(false);
 
   useEffect(() => {
+    if (!isAuthorizedAdmin(auth.currentUser)) {
+      setIsLoading(false);
+      return;
+    }
+
     const unsubscribe = subscribeInquiries(
       (items) => {
         setInquiries(items);

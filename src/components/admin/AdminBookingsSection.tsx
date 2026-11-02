@@ -24,6 +24,8 @@ import {
   updateReservationStatus,
   deleteReservation,
   extractErrorMessage,
+  isAuthorizedAdmin,
+  auth,
 } from '../../firebase.ts';
 
 export const AdminBookingsSection: React.FC = () => {
@@ -39,6 +41,11 @@ export const AdminBookingsSection: React.FC = () => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!isAuthorizedAdmin(auth.currentUser)) {
+      setIsLoading(false);
+      return;
+    }
+
     const unsubscribe = subscribeReservations(
       (items) => {
         setReservations(items);

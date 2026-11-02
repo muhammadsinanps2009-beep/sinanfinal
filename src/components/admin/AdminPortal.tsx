@@ -13,7 +13,6 @@ import {
   LogOut,
   ExternalLink,
   ShieldCheck,
-  ShieldAlert,
   ArrowLeft,
   Loader2,
   AlertCircle,
@@ -43,7 +42,7 @@ export const AdminPortal: React.FC = () => {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // Monitor auth state changes with authorization enforcement
+  // Monitor auth state changes with strict single-email authorization enforcement
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
@@ -51,12 +50,10 @@ export const AdminPortal: React.FC = () => {
           setCurrentUser(user);
           setLoginError(null);
         } else {
-          // Reject unauthorized accounts, sign out immediately to prevent token exposure
+          // Reject any unauthorized account immediately and clear session
           await signOut(auth);
           setCurrentUser(null);
-          setLoginError(
-            `Access Denied: Account "${user.email}" is not authorized for staff administration. Please sign in with an authorized restaurant manager account.`
-          );
+          setLoginError('Access denied. This account is not authorized.');
         }
       } else {
         setCurrentUser(null);
@@ -80,20 +77,33 @@ export const AdminPortal: React.FC = () => {
       if (!isAuthorizedAdmin(user)) {
         await signOut(auth);
         setCurrentUser(null);
-        setLoginError(
-          `Access Denied: Account "${user.email}" does not have staff privileges. Authorized administrator account required.`
-        );
+        setLoginError('Access denied. This account is not authorized.');
       } else {
         setCurrentUser(user);
       }
     } catch (err: unknown) {
+      console.error('Firebase Google Sign-In Error:', err);
       const error = err as { code?: string; message?: string };
-      if (error?.code === 'auth/popup-blocked') {
-        setLoginError('Sign-in popup was blocked by your browser. Please allow popups for this domain.');
-      } else if (error?.code === 'auth/popup-closed-by-user') {
-        setLoginError('Sign-in was cancelled by the user.');
+      const code = error?.code || '';
+
+      if (code === 'auth/unauthorized-domain') {
+        setLoginError(
+          'This website domain is not authorized in Firebase. Add it under Firebase Console > Authentication > Settings > Authorized domains.'
+        );
+      } else if (code === 'auth/popup-blocked') {
+        setLoginError('The sign-in popup was blocked. Allow popups for this site and try again.');
+      } else if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+        setLoginError('Sign-in was cancelled.');
+      } else if (code === 'auth/network-request-failed') {
+        setLoginError('Network error. Check your internet connection and try again.');
+      } else if (code === 'auth/operation-not-allowed') {
+        setLoginError('Google sign-in is not enabled in Firebase Console > Authentication > Sign-in method.');
+      } else if (code === 'auth/too-many-requests') {
+        setLoginError('Too many attempts. Please wait a moment and try again.');
+      } else if (code === 'auth/internal-error') {
+        setLoginError('Internal authentication error. Please try again.');
       } else {
-        setLoginError('Authentication encountered an unexpected issue. Please verify your internet connection.');
+        setLoginError(`Sign-in failed (${code || 'unknown'}).`);
       }
     } finally {
       setIsLoggingIn(false);
@@ -119,7 +129,7 @@ export const AdminPortal: React.FC = () => {
     );
   }
 
-  // 2. Unauthenticated Login Gate
+  // 2. Unauthenticated / Unauthorized Login Gate (Never render admin UI for non-admin users)
   if (!currentUser || !isAuthorizedAdmin(currentUser)) {
     return (
       <div className="min-h-screen bg-[#14110F] text-[#F6EFE3] flex flex-col justify-between p-6 film-grain">
@@ -147,7 +157,7 @@ export const AdminPortal: React.FC = () => {
               NEWFORM PORTAL
             </h1>
             <p className="text-xs text-[#F6EFE3]/70 leading-relaxed font-light">
-              Sign in with your authorized Google staff email to manage live menu pricing, table bookings, customer inquiries, and operational site settings.
+              Sign in with your authorized Google staff account to manage live menu pricing, table bookings, customer inquiries, and operational site settings.
             </p>
           </div>
 
@@ -159,7 +169,7 @@ export const AdminPortal: React.FC = () => {
           )}
 
           <div className="space-y-3 pt-2">
-            {/* Primary Google Login with strict RBAC */}
+            {/* Primary Google Login with strict popup method */}
             <button
               onClick={handleGoogleLogin}
               disabled={isLoggingIn}
@@ -196,7 +206,7 @@ export const AdminPortal: React.FC = () => {
               Newform Restaurant Management · Mandayapuram, Kalpetta
             </p>
             <p className="text-[10px] text-[#D9A441]/80 font-mono">
-              Primary Administrator: {AUTHORIZED_ADMIN_EMAILS[0]}
+              Authorized Administrator: {AUTHORIZED_ADMIN_EMAILS[0]}
             </p>
           </div>
         </div>
@@ -208,7 +218,7 @@ export const AdminPortal: React.FC = () => {
     );
   }
 
-  // 3. Authenticated & Verified Staff Portal
+  // 3. Authenticated & Verified Staff Portal (Only renders when isAuthorizedAdmin is true)
   return (
     <div className="min-h-screen bg-[#14110F] text-[#F6EFE3] flex flex-col film-grain">
       {/* Top Staff Navigation Header */}
